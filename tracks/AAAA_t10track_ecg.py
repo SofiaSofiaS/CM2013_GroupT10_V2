@@ -107,6 +107,268 @@ def _rpeaks(ecg, fs):
 
 
 
+def _rpeaks_improved(ecg, fs):
+    """
+    Idea:
+        Original ECG
+        |
+        v
+    Bandpass filtering
+        |
+        v
+    Derivative + squaring + integration
+        |
+        v
+    Adaptive QRS detection
+        |
+        v
+    Approximate QRS positions
+        |
+        v
+    Search near each QRS position
+        |
+        v
+    Refined R-peak positions
+    """
+    from scipy.signal import butter, sosfiltfilt, find_peaks
+
+    # Step 1: Bandpass filtering
+    sos = butter(3, [5 / (fs /2), 15 / (fs / 2)], "band", output = "sos")
+    filtered_ecg = sosfiltfilt(sos = sos, x = ecg)
+
+    # Step 2: Differentiation
+    diffed_ecg = np.diff(filtered_ecg, prepend=filtered_ecg[0])
+
+    # Step 3: Squaring
+    sqrd_ecg = diffed_ecg ** 2
+
+    # Step 4: Moving-window integration
+    w = max(1, int(0.15 * fs))
+    integrated_ecg = np.convolve(sqrd_ecg, np.ones(w) / w , "same")
+
+    # Step 5: Candidate detection
+    candidates, _ = find_peaks(integrated_ecg, distance = int(0.2 * fs))
+
+    # Step 6: Adaptive threshold
+    if len(candidates) == 0:
+        return np.array([], dtype = int)
+
+    initial_candidates = candidates[candidates < int(fs * 5)]
+    if len(initial_candidates) < 3:
+        initial_candidates = candidates[:10]
+
+    initial_values = integrated_ecg[initial_candidates]
+    NPKI, SPKI = np.percentile(initial_values, (20, 90))
+    T = NPKI + 0.25 * (SPKI - NPKI)
+
+    rpeaks = []
+    refractory = 0.3 * fs
+    alpha = 0.125
+
+    for candidate in candidates:
+        amplitude = integrated_ecg[candidate]
+        T = NPKI + 0.25 * (SPKI - NPKI)
+
+        if amplitude > T:
+            if not rpeaks or candidate - rpeaks[-1] >= refractory:
+                rpeaks.append(candidate)
+                SPKI = alpha * amplitude + (1 - alpha) * SPKI
+            else:
+                NPKI = alpha * amplitude + (1 - alpha) * NPKI
+
+        else:
+            NPKI = alpha * amplitude + (1 - alpha) * NPKI
+
+    
+    # Step 7: R-peak localization
+
+    refined_peaks = []
+    radius = int(0.1 * fs)
+
+    for rpeak in rpeaks:
+        start = max(0, rpeak - radius)
+        end = min(len(filtered_ecg), rpeak + radius + 1)
+
+        local_peak = np.argmax(np.abs(filtered_ecg[start : end]))
+        global_peak = local_peak + start
+
+        if global_peak not in refined_peaks:
+            refined_peaks.append(global_peak)
+
+    # Step 8: Missed-beat detection
+    suspicious_gaps = np.array([], dtype=int)
+    recovered_peaks = []
+    if len(refined_peaks) >= 6:
+        rr = np.diff(refined_peaks) / fs
+        rr_threshold = 1.8 * np.median(rr)
+
+        suspicious_gaps = np.where(rr > rr_threshold)[0]
+        
+        for gap in suspicious_gaps:
+
+            gap_start = refined_peaks[gap]
+            gap_end = refined_peaks[gap +1]
+            mask = (candidates > gap_start + refractory) & (candidates < gap_end - refractory)
+            gap_candidates = candidates[mask]
+
+            if gap_candidates.size == 0: 
+                continue
+
+            gap_amplitudes = integrated_ecg[gap_candidates]
+            best_idx = np.argmax(gap_amplitudes)
+
+            best_candidate = gap_candidates[best_idx]
+            best_amplitude = gap_amplitudes[best_idx]
+
+            search_threshold = NPKI + 0.125 * (SPKI - NPKI)
+            if best_amplitude > search_threshold:
+
+                start = max(0, best_candidate - radius)
+                end = min(len(filtered_ecg), best_candidate + radius + 1)
+
+                local_peak = np.argmax(np.abs(filtered_ecg[start : end]))
+                global_peak = local_peak + start
+
+                if global_peak not in refined_peaks and global_peak not in recovered_peaks and global_peak - gap_start >= refractory and gap_end - global_peak >= refractory:
+                    recovered_peaks.append(global_peak)
+
+    # Step 9: Return detected R-peaks
+    rpeaks_combined = np.concatenate((refined_peaks, recovered_peaks), axis=0)
+    rpeaks_int = np.asarray(rpeaks_combined, dtype=int)
+    rpeaks_unique = np.unique(rpeaks_int)
+
+    return rpeaks_unique
+
+def _rr_sample_entropy(rr, m=2, r_ratio=0.2):
+
+    rr = np.asarray(rr, dtype=float)
+
+    if len(rr) < 20 or not np.all(np.isfinite(rr)) or np.any(rr <= 0):
+        return np.nan
+    
+    r = r_ratio *np.std(rr)
+
+    rr_seq_m, rr_seq_m1 = [], []
+    A, B = 0, 0
+    for i in range(len(rr) - m):
+        rr_seq_m.append(rr[i : i+m])
+
+    for i in range(len(rr) - m):
+        rr_seq_m1.append(rr[i : i + m + 1])
+    
+    for i in range(len(rr_seq_m)-1):
+        for j in range(i + 1, len(rr_seq_m)):
+            pair1 = rr_seq_m[i]
+            pair2 = rr_seq_m[j]
+            if np.max(np.abs(pair1-pair2)) <= r:
+                B += 1
+
+    for i in range(len(rr_seq_m1)-1):
+            for j in range(i + 1, len(rr_seq_m1)):
+                pair1 = rr_seq_m1[i]
+                pair2 = rr_seq_m1[j]
+                if np.max(np.abs(pair1-pair2)) <= r:
+                    A += 1
+
+    if A == 0 or B == 0:
+        return np.nan
+
+    sampen = -np.log(A / B)
+
+    return sampen
+
+def _rr_difference_entropy(rr):
+    rr = np.asarray(rr, dtype=float)
+    if len(rr) < 10 or not np.all(np.isfinite(rr)) or np.any(rr <= 0):
+        return np.nan
+
+    drr_normalized = np.diff(rr)/np.median(rr)
+
+    bins = np.array([
+        -np.inf,
+        -0.4,
+        -0.2,
+        -0.1,
+        0.1,
+        0.2,
+        0.4,
+        np.inf
+    ])
+
+    counts, edges = np.histogram(drr_normalized, bins=bins)
+
+    p = counts / np.sum(counts)
+    p_nonzero = p[p> 0]
+    #shannon entropy
+    H = -np.sum(p_nonzero * np.log(p_nonzero))
+    H_normalized = H / np.log(len(counts))
+    return H_normalized
+
+def _qrs_morphology_correlations(ecg, peaks, fs, min_beats=5):
+    ecg = np.asarray(ecg, dtype=float)
+    peaks = np.asarray(peaks, dtype=int)
+    if fs <= 0:
+        return np.nan
+
+    before = int(round(0.12 * fs))
+    after = int(round(0.16 * fs))
+
+    segments = []
+
+    for peak in peaks:
+        start = peak - before
+        end = peak + after
+        if start < 0 or end > len(ecg):
+            continue
+        segment = ecg[start : end]
+        if np.all(np.isfinite(segment)):
+            segments.append(segment)
+
+    if len(segments) < min_beats:
+        return np.nan
+
+    matrix = np.asarray(segments, dtype=float)
+    template = np.median(matrix, axis=0)
+    template_centered = template - np.mean(template)
+
+    magnitude = np.linalg.norm(template_centered)
+    if magnitude == 0:
+        return np.nan
+
+    correlations = []
+    for segment in matrix:
+        centered = segment - np.mean(segment)
+        denominator = np.linalg.norm(centered) * magnitude
+        if denominator == 0:
+            continue
+
+        p = np.dot(centered, template_centered) /denominator
+        correlations.append(p)
+
+    if len(correlations) < min_beats:
+        return np.nan
+
+    return correlations
+
+
+
+def main():
+
+    rr_regular = np.array([0.8] * 30)
+
+    rr_alternating = np.array([0.6, 1.0] * 15)
+
+    rng = np.random.default_rng(0)
+    rr_random = rng.uniform(0.5, 1.2, 30)
+
+    print("Regular:", _rr_difference_entropy(rr_regular))
+    print("Alternating:", _rr_difference_entropy(rr_alternating))
+    print("Random:", _rr_difference_entropy(rr_random))
+
+if __name__ == "__main__":
+    main()
+
+
 #: Hold-out records: 30 per class (N/A/O/~), drawn with a fixed seed from records that none of the
 #: default downloads fetch. Never train, tune or select on them; predict them once at the end.
 #: See HOLDOUT_EVALUATION.md.
@@ -295,22 +557,42 @@ class ECGCinC2017Track(TrackAdapter):
                 return bio.bandpower(sig, f_s, band)
             return spectral_bandpower(sig, f_s, band, method=method, **mkw)
         ecg = rec.epochs["ecg"][0]; fs = rec.fs
-        pk = _rpeaks(ecg, fs); rr = np.diff(pk) / fs
+        pk = _rpeaks_improved(ecg, fs)
+        rr = np.diff(pk) / fs
+        qrs_morph = _qrs_morphology_correlations(ecg, pk, fs)
+
         if len(rr) >= 3:
             hr = 60.0 / np.mean(rr); sdnn = np.std(rr) * 1000
             rmssd = np.sqrt(np.mean(np.diff(rr) ** 2)) * 1000
             pnn50 = np.mean(np.abs(np.diff(rr)) > 0.05) * 100
             cv = np.std(rr) / (np.mean(rr) + 1e-9)
             irr = np.mean((rr < 0.6) | (rr > 1.2))
+            sampen = _rr_sample_entropy(rr)
+            drren = _rr_difference_entropy(rr)
+            qrsstd =  float(np.std(qrs_morph))
+            qrsmed = float(np.median(qrs_morph))
+
         else:
             hr = sdnn = rmssd = pnn50 = cv = irr = 0.0
+            sampen = 0.0
+            drren = 0.0
+            qrsstd = 0.0
+            qrsmed = 0.0
         qrs_bp = _bp(ecg, fs, (5, 15))
         hf = _bp(ecg, fs, (40, min(fs / 2 - 1, 90)))
         feats = [hr, sdnn, rmssd, pnn50, cv, irr, float(len(rr)),
                  qrs_bp / (hf + 1e-9),                      # signal-quality index
                  _bp(ecg, fs, (49, 51)),                    # powerline power
-                 float(np.std(ecg)), float(kurtosis(ecg))]
+                 float(np.std(ecg)), float(kurtosis(ecg)), 
+                 sampen,
+                 drren,
+                 #qrsstd,
+                 qrsmed,
+                 ]
         return np.array([feats]), np.array([rec.labels[0]]), rec.group
+
+
+
 
     def baseline(self, cfg=None):
         """Module 5 — the supplied random forest. `cfg["imbalance"]` selects how
@@ -324,11 +606,55 @@ class ECGCinC2017Track(TrackAdapter):
         the loss (`"balanced"`) — fold-safe via `adapter.SMOTEd`, and needing the
         optional `imbalanced-learn` package. Before you use it, ask what a point
         halfway between two of THIS track's epochs would physically be."""
+
+        from sklearn.pipeline import Pipeline
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.ensemble import RandomForestClassifier
+        from sklearn.neighbors import KNeighborsClassifier
+        from sklearn.svm import SVC
         cfg = self._cfg(cfg)
-        return default_baseline(seed=int(cfg.get("seed", 0)),
-                                imbalance=cfg.get("imbalance", "balanced"),
-                                threshold=float(cfg.get("threshold", 0.5)),
-                                smote_k=int(cfg.get("smote_k", 5)))
+
+        classifier = cfg.get("classifier")
+
+        if classifier == "knn":
+            pipe = Pipeline([
+                ("scale", StandardScaler()),
+                ("clf", KNeighborsClassifier(
+                    n_neighbors=cfg.get("n_neighbors", 5),
+                    weights=cfg.get("weights", "uniform")
+                ))
+            ])
+        elif classifier == "svm":
+            pipe = Pipeline([
+                ("scale", StandardScaler()),
+                ("clf", SVC(
+                    kernel = cfg.get("kernel", "rbf"),
+                    C = cfg.get("C", 1.0),
+                    gamma = cfg.get("gamma", "scale"),
+                    class_weight=cfg.get("class_weights", "balanced")
+                ))
+            ])
+        elif classifier == "rf":
+            pipe = Pipeline([
+                ("scale", StandardScaler()),
+                ("clf", RandomForestClassifier(
+                    n_estimators=cfg.get("n_estimators", 200),
+                    max_depth=cfg.get("max_depth", None),
+                    min_samples_leaf=cfg.get("min_samples_leaf", 1),
+                    class_weight=cfg.get("class_weight", "balanced"),
+                    random_state=cfg.get("seed", 0)
+                ))
+            ])
+        else:
+            print(f"Unknown classifierm{classifier}, using defualt baseline instead")
+            pipe = default_baseline(seed=int(cfg.get("seed", 0)),
+                                            imbalance=cfg.get("imbalance", "balanced"),
+                                            threshold=float(cfg.get("threshold", 0.5)),
+                                            smote_k=int(cfg.get("smote_k", 5)))
+        return pipe        
+
+
+        
 
     _PN_BASE = "https://physionet.org/files/challenge-2017/1.0.0/training/"
 
@@ -445,69 +771,3 @@ class ECGCinC2017Track(TrackAdapter):
                                   epochs={"ecg": x[None, :]}, labels=np.array([ref[rid]])))
         return recs
 
-
-# if __name__ == "__main__":
-#     t = ECGCinC2017Track()
-#     print(t.dataset_card())
-#     rep = t.run_smoke()
-#     from sklearn.metrics import f1_score
-#     print("SMOKE (synthetic) CV: macroF1=%.3f kappa=%.3f n_records=%d"
-#           % (f1_score(rep["y_true"], rep["y_pred"], average="macro"),
-#              rep["cohens_kappa"], rep["n_groups"]))
-#     print("spread:", rep["summary"])          # never the pooled number alone (§16.3)
-#     print("classes:", rep["labels"], "\nconfusion (rows=true):\n", rep["confusion"])
-#     # hold-out demo: fit on train records, write a predictions.csv on held-out records
-#     # smoke() emits records grouped by class, so shuffle before an index-based split
-#     recs = list(np.random.default_rng(0).permutation(t.smoke()))
-#     split = int(0.8 * len(recs))
-#     model = t.train_baseline(recs[:split])
-#     import tempfile, os
-#     out = os.path.join(tempfile.gettempdir(), "ecg_predictions.csv")
-#     t.write_submission(recs[split:], out, model)
-#     print("wrote submission:", out, "->", open(out).readline().strip(), "...")
-import sys, os, subprocess
-from sklearn.metrics import f1_score
-
-if __name__ == "__main__":
-    t = ECGCinC2017Track()
-    print(t.dataset_card())
-
-    cache = os.path.join('..', 'data_cache', 'ecg_cinc2017') if os.path.isdir('../data_cache') else 'data_cache/ecg_cinc2017'
-    print("Downloading data...")
-
-    t.download(cache, subset=300); recs = t.load(cache)
-
-    print("Data downloaded")
-
-    recs = t.load(cache)
-    print(f"\nloaded {len(recs)} real ECG records")
-
-    t.assert_no_holdout(recs)
-
-    X, y, groups = t.build_dataset(recs)
-
-    print("Feature matrix:", X.shape)
-    print("Labels:", y.shape)
-    print("Unique records:", len(set(groups)))
-
-    rep = t.evaluate(X, y, groups)
-
-    macro_f1 = f1_score(
-        rep["y_true"],
-        rep["y_pred"],
-        average="macro"
-    )   
-
-    print("\n===== ECG CLASSIFICATION RESULTS =====")
-    print(f"Macro-F1: {macro_f1:.3f}")
-    print(f"Cohen's kappa: {rep['cohens_kappa']:.3f}")
-    print(f"Number of records: {rep['n_groups']}")
-
-    print("\nSpread across folds:")
-    print(rep["summary"])
-
-    print("\nClasses:")
-    print(rep["labels"])
-
-    print("\nConfusion matrix (rows = true class):")
-    print(rep["confusion"])
