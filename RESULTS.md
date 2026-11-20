@@ -14,7 +14,7 @@ spread is half a result.
 | # | Date | What changed & why (one line) | Primary metric **with spread** | Better than previous? | If not — why it was kept | Commit |
 |---|---|---|---|---|---|---|
 | 1 | 2026-11-13 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.0413, range 0.5500–0.6688 across 5 Folds) | — (baseline) | — | `a1b2c3d` |
-| 2 | 2026-11-20 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification | yes |  | 3560dfb | 
+| 2 | 2026-11-20 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification | mean macro-F1 0.6992 (sd 0.0229, range 0.6645-0.7298 across 5 Folds) | yes |  | 3560dfb | 
 | 3 |  |  |  | yes / no |  |  |
 | 4 |  |  |  | yes / no |  |  |
 
