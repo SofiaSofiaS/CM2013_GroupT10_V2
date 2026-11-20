@@ -14,7 +14,7 @@ spread is half a result.
 | # | Date | What changed & why (one line) | Primary metric **with spread** | Better than previous? | If not — why it was kept | Commit |
 |---|---|---|---|---|---|---|
 | 1 | 2026-11-13 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.0413, range 0.5500–0.6688 across 5 Folds) | — (baseline) | — | `a1b2c3d` |
-| 2 |  |  |  | yes / no |  |  | 
+| 2 | 2026-11-13 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification | yes |  | 3560dfb | 
 | 3 |  |  |  | yes / no |  |  |
 | 4 |  |  |  | yes / no |  |  |
 
@@ -83,7 +83,7 @@ add rows as the pipeline grows, and note the alternative you rejected.
 | 6. Inference |  |  |  |  |  |
 | 7. Reporting |  |  |  |  |  |
 
-## Iteration 1
+## Iteration 
 | Pipeline module | Option chosen | Alternatives considered | Why this one | Iteration | Revised later? |
 |---|---|---|---|---|---|
 | Data loading | 1,999 real PhysioNet ECG recordings | Synthetic smoke data | Establish performance on real ECG recordings | 1 | — |
@@ -93,8 +93,11 @@ add rows as the pipeline grows, and note the alternative you rejected.
 | Classification | Supplied Random Forest, balanced | Tuned RF, SVM | Establish reference performance before model comparisons | 1 | — |
 | Inference | Original implementation | — | No modifications required for reference baseline | 1 | — |
 | Reporting | Macro-F1, kappa, confusion matrix, per-class recall | — | Follow ECG evaluation requirements | 1 | — |
-
-
+| Feature extraction | improved r-peak detection | peak original rpeak detection | Improved the r-peak detection, also improved macro-F1 compared to supplied baseline (0.5963 to 0.6642)| 2 | No |
+| Preprocessing | None | Bandpass, Notch, Bandpass + Notch, Bandpass + Wavelet, Notch + Wavelet, Savgol | This improved the macro-F1 and kappa more than other classes, confusion matrix also showed better results for all four classes compare to other filters | 2 | Yes|
+| Feature extraction | RR-entropy, RR-difference entropy, median QRS-morphology | STD QRS-morphology | These features helped identified recordings of class "other" and "AF", features describing normal ecg already exists with supplied baseline | 2 | - |
+| Feature extraction |---|---|---|---|---|
+| Feature extraction |---|---|---|---|---|
 
 
 ## Revisions — the ones that went **backwards** (Criterion 9's actual evidence)
