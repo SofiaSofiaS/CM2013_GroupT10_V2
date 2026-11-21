@@ -112,9 +112,9 @@ between iterations. Record what actually happened.
 | Iteration | Who | Modules / tasks owned | Reviewed by |
 |---|---|---|---|
 | 1 | Hampus | The whole group ran the default baseline in the beginning of the project but results got lost, Hampus ran the supplied baseline again i python virtual enviroment while having the correct library versions and asserting no holdouts |  |
-| 2 | Hampus Eriksson | Data loading, classification, Reporting |---|
-| 2 | Sofia Remle | Preprocessing, Reporting |---|
-| 2 | Bingchen Wei | Feature extraction, feature selection |---|
+| 2 | Hampus Eriksson | Data loading, classification, Reporting | Bingchen Wei|
+| 2 | Sofia Remle | Preprocessing, Reporting | Hampus Eriksson |
+| 2 | Bingchen Wei | Feature extraction, feature selection | Sofia Remle |
 | 3 | Hampus Eriksson |---|---|
 | 3 | Sofia Remle |---|---|
 | 3 | Bingchen Wei |---|---|
