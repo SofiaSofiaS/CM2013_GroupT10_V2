@@ -14,7 +14,7 @@ spread is half a result.
 | # | Date | What changed & why (one line) | Primary metric **with spread** | Better than previous? | If not — why it was kept | Commit |
 |---|---|---|---|---|---|---|
 | 1 | 2026-11-21 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.044, range 0.557-0.663 across 5 folds) | — (baseline) | — | `2880f6b` |
-| 2 | 2026-11-20 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification | mean macro-F1 0.6992 (sd 0.0229, range 0.6645-0.7298 across 5 Folds) | yes |  | 3560dfb | 
+| 2 | 2026-11-21 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification and added Anova (k=11) for feature selection to improve noisy class while maintaining other calssification | mean macro-F1 0.6992 (sd 0.0229, range 0.6645-0.7298 across 5 Folds) | yes |  | 3560dfb | 
 | 3 |  |  |  | yes / no |  |  |
 | 4 |  |  |  | yes / no |  |  |
 
@@ -72,18 +72,7 @@ Rows above say *what happened*; this says *what you chose and why*, which is wha
 to make traceable and what the report's defence is built from. There is no single correct
 pipeline here — the scaffold deliberately ships options, not answers. One line per decision;
 add rows as the pipeline grows, and note the alternative you rejected.
-
-| Pipeline module | Option chosen | Alternative(s) considered | Why this one (one sentence) | Iteration | Revised later? |
-|---|---|---|---|---|---|
-| 1. Data loading | *e.g.* 8 subjects, both nights | more subjects, one night each | subject-level split needs both nights inside one group | 1 | — |
-| 2. Preprocessing |  |  |  |  |  |
-| 3. Feature extraction |  |  |  |  |  |
-| 4. Feature selection | *e.g.* `select="none"` | ANOVA `SelectKBest`, tree importances | 14 features vs. ~1 800 epochs — pruning risked more than it saved | 1 | *e.g.* **yes, iter 4** — `select_k=20` was a no-op (harness said so); switched to `k=6` |
-| 5. Classification, incl. `imbalance` | *e.g.* `imbalance="balanced"` | `"none"`, `"resample"`, `"threshold"` | *(if you kept the default, say you looked and why — a silent default earns nothing)* |  |  |
-| 6. Inference |  |  |  |  |  |
-| 7. Reporting |  |  |  |  |  |
-
-## Iteration 
+ 
 | Pipeline module | Option chosen | Alternatives considered | Why this one | Iteration | Revised later? |
 |---|---|---|---|---|---|
 | Data loading | 1,999 real PhysioNet ECG recordings | Synthetic smoke data | Establish performance on real ECG recordings | 1 | — |
@@ -95,9 +84,10 @@ add rows as the pipeline grows, and note the alternative you rejected.
 | Reporting | Macro-F1, kappa, confusion matrix, per-class recall | — | Follow ECG evaluation requirements | 1 | — |
 | Feature extraction | improved r-peak detection | peak original rpeak detection | Improved the r-peak detection, also improved macro-F1 compared to supplied baseline (0.5963 to 0.6642)| 2 | No |
 | Preprocessing | None | Bandpass, Notch, Bandpass + Notch, Bandpass + Wavelet, Notch + Wavelet, Savgol | This improved the macro-F1 and kappa more than other classes, confusion matrix also showed better results for all four classes compare to other filters | 2 | Yes|
-| Feature extraction | RR-entropy, RR-difference entropy, median QRS-morphology | STD QRS-morphology | These features helped identified recordings of class "other" and "AF", features describing normal ecg already exists with supplied baseline | 2 | - |
-| Feature selection | All 11 original features plus the RR-entropy, RR-difference and median QRS-morphology median for a total of 14 features | All the features chosen plus QRS-morphology STD | Improved the macro-F1 score and helped identify records of class "Other" and "AF", QRS-morphology STD did not improve calssification or macro-F1, thus removing it simplified and improved the model | 2 | - |
+| Feature extraction | RR-entropy, RR-difference entropy, median QRS-morphology | SD QRS-morphology | These features helped identified recordings of class "other" and "AF", features describing normal ecg already exists with supplied baseline, SD morphology seemed to confuse the classifier more than help | 2 | - |
+| Feature selection | Anova (k=11) | None, Variance, Anova (k=8), Tree, Lasso | This was the only classifier that improved the noisy class WHILE not sacreficing the other classes | 2 | - |
 | Feature extraction |---|---|---|---|---|
+|---|---|---|---|---|---|
 
 
 ## Revisions — the ones that went **backwards** (Criterion 9's actual evidence)

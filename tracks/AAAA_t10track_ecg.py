@@ -644,7 +644,7 @@ class ECGCinC2017Track(TrackAdapter):
                  #Added features
                  sampen,
                  drren,
-                 qrsstd,
+                 #qrsstd,
                  qrsmed,
                  ]
         return np.array([feats]), np.array([rec.labels[0]]), rec.group

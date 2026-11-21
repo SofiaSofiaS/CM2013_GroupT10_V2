@@ -42,7 +42,8 @@ def main():
         "seed" : SEED,
         "preprocess": "none",
         "r_peak": "R2",
-        "select": "none",
+        "select": "anova",
+        "select_k": 11,
         "imbalance": "balanced",
         "cv_max_splits": 5,
     }
@@ -109,8 +110,6 @@ def main():
         labels=track.meta.classes,
         title="ECG Classification — Confusion Matrix"
     )
-
-    summarize_report(report)
 
     plt.show()
 
