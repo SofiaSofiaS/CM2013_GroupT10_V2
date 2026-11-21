@@ -642,10 +642,10 @@ class ECGCinC2017Track(TrackAdapter):
                  _bp(ecg, fs, (49, 51)),                    # powerline power
                  float(np.std(ecg)), float(kurtosis(ecg)), 
                  #Added features
-                 #sampen,
-                 #drren,
+                 sampen,
+                 drren,
                  #qrsstd,
-                 #qrsmed,
+                 qrsmed,
                  ]
         return np.array([feats]), np.array([rec.labels[0]]), rec.group
 
