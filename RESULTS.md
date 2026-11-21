@@ -96,7 +96,7 @@ add rows as the pipeline grows, and note the alternative you rejected.
 | Feature extraction | improved r-peak detection | peak original rpeak detection | Improved the r-peak detection, also improved macro-F1 compared to supplied baseline (0.5963 to 0.6642)| 2 | No |
 | Preprocessing | None | Bandpass, Notch, Bandpass + Notch, Bandpass + Wavelet, Notch + Wavelet, Savgol | This improved the macro-F1 and kappa more than other classes, confusion matrix also showed better results for all four classes compare to other filters | 2 | Yes|
 | Feature extraction | RR-entropy, RR-difference entropy, median QRS-morphology | STD QRS-morphology | These features helped identified recordings of class "other" and "AF", features describing normal ecg already exists with supplied baseline | 2 | - |
-| Feature extraction |---|---|---|---|---|
+| Feature selection | All 11 original features plus the RR-entropy, RR-difference and median QRS-morphology median for a total of 14 features | All the features chosen plus QRS-morphology STD | Improved the macro-F1 score and helped identify records of class "Other" and "AF", QRS-morphology STD did not improve calssification or macro-F1, thus removing it simplified and improved the model | 2 | - |
 | Feature extraction |---|---|---|---|---|
 
 
@@ -122,6 +122,15 @@ between iterations. Record what actually happened.
 | Iteration | Who | Modules / tasks owned | Reviewed by |
 |---|---|---|---|
 | 1 | Hampus | The whole group ran the default baseline in the beginning of the project but results got lost, Hampus ran the supplied baseline again i python virtual enviroment while having the correct library versions and asserting no holdouts |  |
+| 2 | Hampus Eriksson | Data loading, classification, Reporting |---|
+| 2 | Sofia Remle | Preprocessing, Reporting |---|
+| 2 | Bingchen Wei | Feature extraction, feature selection |---|
+| 3 | Hampus Eriksson |---|---|
+| 3 | Sofia Remle |---|---|
+| 3 | Bingchen Wei |---|---|
+| 4 | Hampus Eriksson |---|---|
+| 4 | Sofia Remle |---|---|
+| 4 | Bingchen Wei |---|---|
 
 ## Final numbers (fill in once, at the end)
 

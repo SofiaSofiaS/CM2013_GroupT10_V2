@@ -34,9 +34,11 @@ def main():
     print("======================================")
 
     SEED = 0
-    SUBSET = 2000
+    DEV_SUBSET = 2000
+    EVAL_SUBSET = 1000
 
     USE_REAL = True
+    EVAL = False #Set true if doing evaulation of baseline, set false if developing and testing different version
 
     #Find these in adapter.py, theres a dict defined as "DEFAULT_CFG"
     cfg = {
@@ -56,11 +58,33 @@ def main():
     # ----------------------------------------------
 
     if USE_REAL:
-        cache_dir = PROJECT_ROOT / "data_cache" / "ecg_B0"
-        print("\nDownloading ECG recordings...")
-        track.download(str(cache_dir), subset = SUBSET, seed = SEED)
-        records = track.load(str(cache_dir))
-        track.assert_no_holdout(records)
+
+        cache_dir_dev = PROJECT_ROOT / "data_cache" / "dev"
+        cache_dir_eval = PROJECT_ROOT / "data_cache" / "eval"
+
+        print("\nDownloading ECG recordings for development...")
+        track.download(str(cache_dir_dev), subset = DEV_SUBSET, seed = SEED)
+        dev_records = track.load(str(cache_dir_dev))
+        dev_ids = {rec.group for rec in dev_records}
+        track.assert_no_holdout(dev_records)
+
+        if EVAL:
+            print("\nDownloading ECG recordings for evaluation...")
+            track.download(str(cache_dir_eval), subset = EVAL_SUBSET, seed = SEED, exclude_ids=dev_ids)
+            eval_records = track.load(str(cache_dir_eval))
+            eval_ids = {rec.group for rec in eval_records}
+
+            if dev_ids.isdisjoint(eval_ids):
+                raise ValueError("Rerords found in both develepment set and evaluation set")
+            
+            track.assert_no_holdout(eval_records)
+
+            records = eval_records
+            
+        else:
+            records = dev_records
+
+
     else:
         records = track.smoke()
         print(f"Generated {len(records)} synthetic ECG recordings")

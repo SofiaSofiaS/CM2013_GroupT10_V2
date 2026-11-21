@@ -105,6 +105,49 @@ def _rpeaks(ecg, fs):
     pk, _ = find_peaks(integ, height=0.3 * np.max(integ) + 1e-9, distance=int(0.3 * fs))
     return pk
 
+def _rpeaks_adaptive(ecg, fs):
+    from scipy.signal import butter, filtfilt, find_peaks
+    b, a = butter(3, [5 / (fs / 2), 15 / (fs / 2)], "band")
+    f = filtfilt(b, a, ecg)
+    d = np.diff(f, prepend=f[0]) ** 2
+    w = max(1, int(0.15 * fs))
+    integ = np.convolve(d, np.ones(w) / w, "same")
+    candidates, _ = find_peaks(integ, height=0.3 * np.max(integ) + 1e-9, distance=int(0.3 * fs))
+
+    # Step 5: Candidate detection
+    candidates, _ = find_peaks(integ, distance = int(0.2 * fs))
+
+    # Step 6: Adaptive threshold
+    if len(candidates) == 0:
+        return np.array([], dtype = int)
+
+    initial_candidates = candidates[candidates < int(fs * 5)]
+    if len(initial_candidates) < 3:
+        initial_candidates = candidates[:10]
+
+    initial_values = integ[initial_candidates]
+    NPKI, SPKI = np.percentile(initial_values, (20, 90))
+    T = NPKI + 0.25 * (SPKI - NPKI)
+
+    rpeaks = []
+    refractory = 0.3 * fs
+    alpha = 0.125
+
+    for candidate in candidates:
+        amplitude = integ[candidate]
+        T = NPKI + 0.25 * (SPKI - NPKI)
+
+        if amplitude > T:
+            if not rpeaks or candidate - rpeaks[-1] >= refractory:
+                rpeaks.append(candidate)
+                SPKI = alpha * amplitude + (1 - alpha) * SPKI
+            else:
+                NPKI = alpha * amplitude + (1 - alpha) * NPKI
+
+        else:
+            NPKI = alpha * amplitude + (1 - alpha) * NPKI
+
+    return np.asarray(rpeaks, dtype=int)
 
 
 def _rpeaks_improved(ecg, fs):
@@ -178,7 +221,6 @@ def _rpeaks_improved(ecg, fs):
 
         else:
             NPKI = alpha * amplitude + (1 - alpha) * NPKI
-
     
     # Step 7: R-peak localization
 
@@ -413,7 +455,7 @@ class ECGCinC2017Track(TrackAdapter):
     #: Sleep-EDF, this track's `preprocess()` forwards the whole Chapter 8
     #: denoise menu, and its HRV/quality features include band powers integrated
     #: from a Chapter 7 estimator — so both stage-2 and stage-3 menus are real.
-    SUPPORTED_CFG_KEYS = DENOISE_CFG_KEYS | SPECTRAL_CFG_KEYS | {"ecg_band"}
+    SUPPORTED_CFG_KEYS = DENOISE_CFG_KEYS | SPECTRAL_CFG_KEYS | {"ecg_band", "r_peak"}
 
     #: Class counts for the synthetic smoke set, in the same lopsided shape as the
     #: real challenge (Normal dominates; AF and Noisy are rare). The rubric grades
@@ -548,16 +590,28 @@ class ECGCinC2017Track(TrackAdapter):
         expect small movements — say so honestly if that is what you measure."""
         from scipy.stats import kurtosis
         cfg = self._cfg(cfg)
+
         method = str(cfg.get("spectral_method", "welch") or "welch").lower()
         mkw = {"ar_order": int(cfg.get("ar_order", 16)),
                "bandwidth": float(cfg.get("mt_bandwidth", 4.0))}
+        rpeak_method = str(cfg.get("r_peak"))
 
         def _bp(sig, f_s, band):
             if method in ("welch", "default"):
                 return bio.bandpower(sig, f_s, band)
             return spectral_bandpower(sig, f_s, band, method=method, **mkw)
-        ecg = rec.epochs["ecg"][0]; fs = rec.fs
-        pk = _rpeaks_improved(ecg, fs)
+
+
+        ecg = rec.epochs["ecg"][0]
+        fs = rec.fs
+
+        if rpeak_method in ("adaptive", "R1"):
+            pk = _rpeaks_adaptive(ecg, fs)
+        elif rpeak_method in ("advanced", "R2"):
+            pk = _rpeaks_improved(ecg, fs)
+        else:
+            pk = _rpeaks(ecg, fs)
+
         rr = np.diff(pk) / fs
         qrs_morph = _qrs_morphology_correlations(ecg, pk, fs)
 
@@ -567,6 +621,7 @@ class ECGCinC2017Track(TrackAdapter):
             pnn50 = np.mean(np.abs(np.diff(rr)) > 0.05) * 100
             cv = np.std(rr) / (np.mean(rr) + 1e-9)
             irr = np.mean((rr < 0.6) | (rr > 1.2))
+            #Added features
             sampen = _rr_sample_entropy(rr)
             drren = _rr_difference_entropy(rr)
             qrsstd =  float(np.std(qrs_morph))
@@ -574,24 +629,25 @@ class ECGCinC2017Track(TrackAdapter):
 
         else:
             hr = sdnn = rmssd = pnn50 = cv = irr = 0.0
+            #Added features
             sampen = 0.0
             drren = 0.0
             qrsstd = 0.0
             qrsmed = 0.0
+
         qrs_bp = _bp(ecg, fs, (5, 15))
         hf = _bp(ecg, fs, (40, min(fs / 2 - 1, 90)))
         feats = [hr, sdnn, rmssd, pnn50, cv, irr, float(len(rr)),
                  qrs_bp / (hf + 1e-9),                      # signal-quality index
                  _bp(ecg, fs, (49, 51)),                    # powerline power
                  float(np.std(ecg)), float(kurtosis(ecg)), 
-                 sampen,
-                 drren,
+                 #Added features
+                 #sampen,
+                 #drren,
                  #qrsstd,
-                 qrsmed,
+                 #qrsmed,
                  ]
         return np.array([feats]), np.array([rec.labels[0]]), rec.group
-
-
 
 
     def baseline(self, cfg=None):
@@ -658,7 +714,7 @@ class ECGCinC2017Track(TrackAdapter):
 
     _PN_BASE = "https://physionet.org/files/challenge-2017/1.0.0/training/"
 
-    def download(self, cache_dir, subset=400, seed=0, workers=8):
+    def download(self, cache_dir, subset=400, seed=0, workers=8, exclude_ids = None):
         """Fetch a class-stratified subset of the CinC-2017 training set into
         cache_dir. Needs network; `wfdb` not required for the download itself.
 
@@ -675,6 +731,9 @@ class ECGCinC2017Track(TrackAdapter):
             urllib.request.urlretrieve(self._PN_BASE + "REFERENCE-v3.csv", ref_dst)
         # group record ids (with their A0x/ subfolder prefix) by class label
         by_cls = {c: [] for c in self.meta.classes}
+        if exclude_ids is None:
+            exclude_ids = set()
+
         for line in open(ref_dst):
             line = line.strip()
             if "," not in line:
@@ -682,6 +741,8 @@ class ECGCinC2017Track(TrackAdapter):
             rid, lab = line.split(",", 1)
             if os.path.basename(rid) in HOLDOUT_RECORDS:      # hold-out records are never part of training
                 continue
+            if os.path.basename(rid) in exclude_ids:      # exclude chosen ID:s
+                            continue
             by_cls.setdefault(lab, []).append(rid)
         # stratified pick: proportional share of `subset`, but >= floor per class
         rng = np.random.default_rng(seed)

@@ -322,7 +322,7 @@ class ECGCinC2017Track(TrackAdapter):
 
     _PN_BASE = "https://physionet.org/files/challenge-2017/1.0.0/training/"
 
-    def download(self, cache_dir, subset=400, seed=0, workers=8):
+    def download(self, cache_dir, subset=400, seed=0, workers=8, exclude_ids=None):
         """Fetch a class-stratified subset of the CinC-2017 training set into
         cache_dir. Needs network; `wfdb` not required for the download itself.
 
@@ -339,12 +339,16 @@ class ECGCinC2017Track(TrackAdapter):
             urllib.request.urlretrieve(self._PN_BASE + "REFERENCE-v3.csv", ref_dst)
         # group record ids (with their A0x/ subfolder prefix) by class label
         by_cls = {c: [] for c in self.meta.classes}
+        if exclude_ids is None:
+            exclude_ids = set()
         for line in open(ref_dst):
             line = line.strip()
             if "," not in line:
                 continue
             rid, lab = line.split(",", 1)
             if os.path.basename(rid) in HOLDOUT_RECORDS:      # hold-out records are never part of training
+                continue
+            if os.path.basename(rid) in exclude_ids:      # exclude chosen ID:s
                 continue
             by_cls.setdefault(lab, []).append(rid)
         # stratified pick: proportional share of `subset`, but >= floor per class
