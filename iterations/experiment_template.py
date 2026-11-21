@@ -7,7 +7,7 @@ Purpose:
     FILL IN THE PURPOSE HERE
 
 Dataset: 
-    PhysioNet/CinC Challenge 2017 (real ECG recordings)
+    PhysioNet/CinC Challenge 2017 (real ECG recordings), 1999 real recording, part of the developmental set
 
 Evaluation:
     5-fold GroupKFold, split by ECG recording

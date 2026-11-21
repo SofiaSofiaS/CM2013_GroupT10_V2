@@ -644,10 +644,33 @@ class ECGCinC2017Track(TrackAdapter):
                  #Added features
                  sampen,
                  drren,
-                 #qrsstd,
+                 qrsstd,
                  qrsmed,
                  ]
         return np.array([feats]), np.array([rec.labels[0]]), rec.group
+
+    def select_features(self, X, y, cfg=None):
+        from sklearn.pipeline import Pipeline
+        from sklearn.impute import SimpleImputer
+
+        cfg = self._cfg(cfg)
+
+        # First create and fit an imputer on the training fold
+        imputer = SimpleImputer(
+            strategy="median",
+            keep_empty_features=True
+        )
+        X_imputed = imputer.fit_transform(X)
+
+        # Fit the normal feature selector on imputed training data
+        selector = super().select_features(X_imputed, y, cfg=cfg)
+
+        # Return a fitted pipeline so evaluate() can transform
+        # validation recordings using the same imputer
+        return Pipeline([
+            ("imputer", imputer),
+            ("selector", selector)
+        ])
 
 
     def baseline(self, cfg=None):
