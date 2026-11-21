@@ -13,7 +13,7 @@ spread is half a result.
 
 | # | Date | What changed & why (one line) | Primary metric **with spread** | Better than previous? | If not — why it was kept | Commit |
 |---|---|---|---|---|---|---|
-| 1 | 2026-11-13 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.0413, range 0.5500–0.6688 across 5 Folds) | — (baseline) | — | `a1b2c3d` |
+| 1 | 2026-11-21 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.044, range 0.557-0.663 across 5 folds) | — (baseline) | — | `2880f6b` |
 | 2 | 2026-11-20 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification | mean macro-F1 0.6992 (sd 0.0229, range 0.6645-0.7298 across 5 Folds) | yes |  | 3560dfb | 
 | 3 |  |  |  | yes / no |  |  |
 | 4 |  |  |  | yes / no |  |  |
@@ -109,7 +109,7 @@ diagnose from.
 
 | # | The downstream result that triggered it | Which earlier decision it indicted | What you changed | What happened to the metric |
 |---|---|---|---|---|
-| 1 | *e.g.* worst-subject κ 0.14 vs. mean 0.61 | stage 2 — no per-recording normalisation | z-scored band powers within each recording | mean κ 0.61 → 0.59, **worst subject 0.14 → 0.38** — kept |
+| 1 | Realised that developmental data was also used to evaluated model | stage 2 — no per-recording normalisation | added another 1999 records, that are only used for evaluation | decreaseda a bit but now by a substantial amount |
 | 2 |  |  |  |  |
 
 ## Who did what
