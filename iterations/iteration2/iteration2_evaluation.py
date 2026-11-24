@@ -3,10 +3,10 @@ Evaluation script, copy this script into another file when running evaluating it
 Do not run this script to do experiments, this script only uses evaluation data, experimenting on evaluation data can inflate the evaluation score
 
 Iteration:
-    Iteration 1 - Establishing defualt baseline performance
+    Iteration 2 - Preprocessing, feature extraction, feature selection
 
 Dataset: 
-    PhysioNet/CinC Challenge 2017 (real ECG recordings), 1011 recordings 
+    PhysioNet/CinC Challenge 2017 (real ECG recordings), 1999 real recording, part of the evaluation set
 
 Evaluation:
     5-fold GroupKFold, split by ECG recording
@@ -14,6 +14,19 @@ Evaluation:
 Primary metric:
     Macro-F1
 
+Result:
+    | true \ pred | N | A | O | ~ | n |
+    |---|---|---|---|---|---|
+    | **N** | 0.91 | 0.01 | 0.07 | 0.01 | 1200 |
+    | **A** | 0.07 | 0.66 | 0.26 | 0.01 | 173 |
+    | **O** | 0.37 | 0.05 | 0.56 | 0.02 | 567 |
+    | **~** | 0.34 | 0.02 | 0.20 | 0.44 | 59 |
+
+    **macro_f1** — mean macro_f1 0.663 (sd 0.022, range 0.633-0.689 across 5 folds); pooled 0.664
+    - cohens_kappa: pooled 0.577, mean over folds 0.575
+    - balanced_accuracy: pooled 0.644, mean over folds 0.643
+    - accuracy: pooled 0.777, mean over folds 0.777
+    - worst fold: 2 (macro_f1 0.633, n=400) — read this one's errors before the mean's
 """
 
 import sys

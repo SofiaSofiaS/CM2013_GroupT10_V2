@@ -15,7 +15,7 @@ spread is half a result.
 |---|---|---|---|---|---|---|
 | 1 | 2026-11-21 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.044, range 0.557-0.663 across 5 folds) | — (baseline) | — | 2880f6b |
 | 2 | 2026-11-21 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification and added Anova (k=11) for feature selection to improve noisy class while maintaining other calssification | mean macro_f1 0.663 (sd 0.022, range 0.633-0.689 across 5 folds) | yes |  | 4113e6 | 
-| 3 |  |  |  | yes / no |  |  |
+| 3 | 2026-11-23 | Compared random forest, kNN and SVM, then tuned random forest depth and leaf size to improve minority class recall, selected random forest with min_samples_leaf = 5 | mean macro_f1 0.679 (sd 0.024, range 0.637-0.695 across 5 folds) | yes |  |  |
 | 4 |  |  |  | yes / no |  |  |
 
 *"Better" means better under the same honest harness — same split unit, same evaluation mode,
@@ -86,7 +86,9 @@ add rows as the pipeline grows, and note the alternative you rejected.
 | Preprocessing | None | Bandpass, Notch, Bandpass + Notch, Bandpass + Wavelet, Notch + Wavelet, Savgol | This improved the macro-F1 and kappa more than other classes, confusion matrix also showed better results for all four classes compare to other filters | 2 | Yes|
 | Feature extraction | RR-entropy, RR-difference entropy, median QRS-morphology | SD QRS-morphology | These features helped identified recordings of class "other" and "AF", features describing normal ecg already exists with supplied baseline, SD morphology seemed to confuse the classifier more than help | 2 | - |
 | Feature selection | Anova (k=11) | None, Variance, Anova (k=8), Tree, Lasso | This was the only classifier that improved the noisy class WHILE not sacreficing the other classes | 2 | - |
-| Feature extraction |---|---|---|---|---|
+| Classification | Keep defualt random forest classifier | kNN and SVM  with different settings | This option maintained a good macro-F1 compared to other calssifiers | 3 | Yes |
+| Classification | Random forest (min smaples per leaf = 5) | kNN, SVM and Random forest with different settings | This option gave a good balance between macro-F1 and minority class recall | 3 | - |
+| Classification | Keep random forest (min smaples per leaf = 5) | Differend random forests with changed max depth and min sample leaf size | Other classifiers had worse macro-F1 or worse balanced accuracy | 3 | - |
 |---|---|---|---|---|---|
 
 
@@ -100,7 +102,7 @@ diagnose from.
 | # | The downstream result that triggered it | Which earlier decision it indicted | What you changed | What happened to the metric |
 |---|---|---|---|---|
 | 1 | Realised that developmental data was also used to evaluated model | stage 2 — no per-recording normalisation | added another 1999 records, that are only used for evaluation | decreaseda a bit but now by a substantial amount |
-| 2 |  |  |  |  |
+| 2 | Default random forest acheived developmet macro-F1 0.688 but noisy recall was only 0.47 suggesting room for improvement | Earlier decision to retain the deafult random forest classifier | Revisited configuration adn tested random forest depth and min leaf size | Developmental macro-F1 decreased (0.688 -> 0.674) but balanced accuracy increased (0.656 ->  0.749), AF recall increased (0.69 -> 0.79) and noisy recall increased (0.47 -> 0.76) |
 
 ## Who did what
 

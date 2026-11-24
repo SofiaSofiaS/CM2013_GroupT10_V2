@@ -5,6 +5,7 @@
         "pythonTerminalEnvVarActivation"
     ],
     "python.analysis.extraPaths": [
-        "./tracks"
+        "./tracks",
+        "./src/bsp"
     ]
 }

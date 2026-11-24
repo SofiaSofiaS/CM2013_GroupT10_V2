@@ -7,7 +7,7 @@ Purpose:
     FILL IN THE PURPOSE HERE
 
 Dataset: 
-    PhysioNet/CinC Challenge 2017 (real ECG recordings)
+    PhysioNet/CinC Challenge 2017 (real ECG recordings), 1999 real recording, part of the developmental set
 
 Evaluation:
     5-fold GroupKFold, split by ECG recording
@@ -80,7 +80,15 @@ def main():
         },
     }
 
-
+    cfg = {
+        "seed" : SEED,
+        "preprocess": "wavelet",
+            "wavelet": "db4",
+        "ecg_band": (0.5, 40),
+        "select": "none",
+        "imbalance": "balanced",
+        "cv_max_splits": 5,
+    }
 
 
     track = ECGCinC2017Track()
@@ -123,50 +131,124 @@ def main():
     import matplotlib.pyplot as plt
     import numpy as np
     from AAAA_t10track_ecg import _rpeaks, _rpeaks_adaptive, _rpeaks_improved
-    fig, axes = plt.subplots(len(track.meta.classes), 1, figsize=(9, 6), sharex=True)
+    #fig, axes = plt.subplots(len(track.meta.classes), 1, figsize=(9, 6), sharex=True)
+
+    # for ax, cls in zip(axes, track.meta.classes):
+    #     rec = next((r for r in records if r.labels[0] == cls), None)
+
+    #     if rec is None: 
+    #         ax.set_visible(False)
+    #         continue
+    #     filt_rec = track.preprocess(rec, cfg=cfg)
+    #     x = filt_rec.epochs['ecg'][0]
+    #     fs = filt_rec.fs
+    #     n = min(len(x), int(30*fs))
+    #     t = np.arange(n)/fs
+
+    #     ax.plot(t, x[:n], lw=0.8)
+
+    #     # pk_default = _rpeaks(x, fs)
+    #     # pk_default = pk_default[pk_default < n]
+    #     # ax.plot(pk_default/fs, x[pk_default], 'r.', ms=8)
+
+    #     pk_adaptive = _rpeaks_adaptive(x, fs)
+    #     pk_adaptive = pk_adaptive[pk_adaptive < n]
+    #     ax.plot(pk_adaptive/fs, x[pk_adaptive], 'c.', ms=8)
+
+    #     pk_improved = _rpeaks_improved(x, fs)
+    #     pk_improved = pk_improved[pk_improved < n]
+    #     ax.plot(pk_improved/fs, x[pk_improved], 'g.', ms=8)
+
+    #     ax.set_ylabel(f'class {cls}')
     
-    for ax, cls in zip(axes, track.meta.classes):
-        rec = next((r for r in records if r.labels[0] == cls), None)
+    # axes[-1].set_xlabel('time (s)')
+    # axes[0].set_title('CinC-2017 rhythm strips (red = R-peaks)')
+    # plt.tight_layout(); 
 
-        if rec is None: 
-            ax.set_visible(False)
-            continue
+    # for i, (name, cfg) in enumerate(configs.items()):
+    #     print("\nConfiguration")
+    #     print(cfg)
+    #     current_track = ECGCinC2017Track()
+    #     print("\nExtracting features...")
+    #     X, y, groups = current_track.build_dataset(records, cfg=cfg)
+    #     report = current_track.evaluate(X, y, groups, cfg=cfg)
+    #     current_track.report(report)
 
-        x = rec.epochs['ecg'][0]
-        fs = rec.fs
-        n = min(len(x), int(15*fs))
-        t = np.arange(n)/fs
 
-        ax.plot(t, x[:n], lw=0.8)
+# Select one ECG recording
+    rec = next(r for r in records if r.labels[0] == "~")
 
-        # pk_default = _rpeaks(x, fs)
-        # pk_default = pk_default[pk_default < n]
-        # ax.plot(pk_default/fs, x[pk_default], 'r.', ms=8)
+    # Original signal directly from load()
+    raw = rec.epochs["ecg"][0]
+    fs = rec.fs
 
-        # pk_adaptive = _rpeaks_adaptive(x, fs)
-        # pk_adaptive = pk_adaptive[pk_adaptive < n]
-        # ax.plot(pk_adaptive/fs, x[pk_adaptive], 'c.', ms=8)
+    # Test three preprocessing configurations
+    cfg_wavelet = {
+        "preprocess": "wavelet",
+        "wavelet": "db4"
+    }
 
-        # pk_improved = _rpeaks_improved(x, fs)
-        # pk_improved = pk_improved[pk_improved < n]
-        # ax.plot(pk_improved/fs, x[pk_improved], 'g.', ms=8)
+    cfg_bandpass = {
+        "preprocess": "bandpass",
+        "ecg_band": (0.5, 40)
+    }
 
-        ax.set_ylabel(f'class {cls}')
-    
-    axes[-1].set_xlabel('time (s)')
-    axes[0].set_title('CinC-2017 rhythm strips (red = R-peaks)')
-    plt.tight_layout(); 
+    cfg_none = {
+        "preprocess": "none"
+    }
 
-    for i, (name, cfg) in enumerate(configs.items()):
-        print("\nConfiguration")
-        print(cfg)
-        current_track = ECGCinC2017Track()
-        print("\nExtracting features...")
-        X, y, groups = current_track.build_dataset(records, cfg=cfg)
-        report = current_track.evaluate(X, y, groups, cfg=cfg)
-        current_track.report(report)
+    wavelet = track.preprocess(rec, cfg_wavelet).epochs["ecg"][0]
+    bandpass = track.preprocess(rec, cfg_bandpass).epochs["ecg"][0]
+    unfiltered = track.preprocess(rec, cfg_none).epochs["ecg"][0]
 
-    #plt.show()
+    # Quantify changes
+    for name, x in [
+        ("None", unfiltered),
+        ("Wavelet", wavelet),
+        ("Bandpass", bandpass)
+    ]:
+        difference = x - raw
+        print(
+            name,
+            "RMSE:", np.sqrt(np.mean(difference**2)),
+            "Max difference:", np.max(np.abs(difference))
+        )
+
+    # Plot the same short segment
+    start = int(5 * fs)
+    end = int(8 * fs)
+    t = np.arange(start, end) / fs
+
+    fig, axes = plt.subplots(3, 1, figsize=(12, 8), sharex=True)
+
+    for ax, (name, filtered) in zip(axes, [
+        ("No preprocessing", unfiltered),
+        ("Wavelet db4", wavelet),
+        ("Bandpass 0.5–40 Hz", bandpass)
+    ]):
+        ax.plot(t, raw[start:end], label="Original", alpha=0.65)
+        ax.plot(t, filtered[start:end], label=name, alpha=0.85)
+        ax.set_title(name)
+        ax.legend()
+        ax.grid(alpha=0.3)
+
+    axes[-1].set_xlabel("Time (seconds)")
+    plt.tight_layout()
+    plt.show()
+
+    difference = wavelet - raw
+
+    print("Maximum difference:", np.max(np.abs(difference)))
+    print("RMSE:", np.sqrt(np.mean(difference**2)))
+
+    plt.figure(figsize=(12, 3))
+    plt.plot(t, difference[start:end])
+    plt.title("Wavelet denoising — removed signal")
+    plt.xlabel("Time (seconds)")
+    plt.ylabel("Amplitude difference")
+    plt.grid(True)
+    plt.show()
+
 
 
 # ----------------------------------------------

@@ -455,7 +455,7 @@ class ECGCinC2017Track(TrackAdapter):
     #: Sleep-EDF, this track's `preprocess()` forwards the whole Chapter 8
     #: denoise menu, and its HRV/quality features include band powers integrated
     #: from a Chapter 7 estimator — so both stage-2 and stage-3 menus are real.
-    SUPPORTED_CFG_KEYS = DENOISE_CFG_KEYS | SPECTRAL_CFG_KEYS | {"ecg_band", "r_peak"}
+    SUPPORTED_CFG_KEYS = DENOISE_CFG_KEYS | SPECTRAL_CFG_KEYS | {"ecg_band", "r_peak", "classifier", "n_estimators", "n_neighbors", "weights", "C", "kernel", "min_samples_leaf", "max_depth", "min_samples_leaf", "gamma"}
 
     #: Class counts for the synthetic smoke set, in the same lopsided shape as the
     #: real challenge (Normal dominates; AF and Noisy are rare). The rubric grades
