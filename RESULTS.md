@@ -15,7 +15,7 @@ spread is half a result.
 |---|---|---|---|---|---|---|
 | 1 | 2026-11-21 | supplied baseline, unchanged — establish the floor using 1999 records | mean Macro-F1 0.5963 (sd 0.044, range 0.557-0.663 across 5 folds) | — (baseline) | — | 2880f6b |
 | 2 | 2026-11-21 | Improved r-peak detection by adding adaptive thresholding, r-peak localization and missed r-peak detection to improve rr-interval accuracy, as well as adding features for abnormal (other and AF) ecg classification and added Anova (k=11) for feature selection to improve noisy class while maintaining other calssification | mean macro_f1 0.663 (sd 0.022, range 0.633-0.689 across 5 folds) | yes |  | 4113e6 | 
-| 3 | 2026-11-23 | Compared random forest, kNN and SVM, then tuned random forest depth and leaf size to improve minority class recall, selected random forest with min_samples_leaf = 5 | mean macro_f1 0.679 (sd 0.024, range 0.637-0.695 across 5 folds) | yes |  |  |
+| 3 | 2026-11-23 | Compared random forest, kNN and SVM, then tuned random forest depth and leaf size to improve minority class recall, selected random forest with min_samples_leaf = 5 | mean macro_f1 0.679 (sd 0.024, range 0.637-0.695 across 5 folds) | yes |  | 0715422 |
 | 4 |  |  |  | yes / no |  |  |
 
 *"Better" means better under the same honest harness — same split unit, same evaluation mode,
