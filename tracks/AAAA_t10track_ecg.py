@@ -281,6 +281,47 @@ def _rpeaks_improved(ecg, fs):
 
     return rpeaks_unique
 
+def _rpeaks_im_V2(ecg,fs):
+    # GOES FROM OUTPUT OF _rpeaks_improved
+    rpeaks_start = _rpeaks_improved(ecg,fs)
+    ecg_array = []
+
+
+    # assume no BPM > 200
+    bpm_max = 200
+    min_gap = 60 / bpm_max * fs # minimum points on ecg between R-peaks
+
+    bpm_min = 40 # assume that BPM > 40 always, check if something there otherwise
+    max_gap = 60 / bpm_min * fs
+    
+  
+
+    first_ones_X = np.array([-min_gap])
+    last_ones_X = np.array([len(ecg)+min_gap])
+    rpeaks_start = np.append(first_ones_X,rpeaks_start)
+    rpeaks_start = np.append(rpeaks_start,last_ones_X)
+    print(rpeaks_start)
+
+    for i in range (len(rpeaks_start)-1):
+        if abs(rpeaks_start[i+1] - rpeaks_start[i]) > max_gap:
+            print("PANIC")
+
+            if len(ecg_array) == 0:
+                ecg_array = ecg.tolist()
+
+            ecg_problem = ecg_array[rpeaks_start[i]:rpeaks_start[i+1]]
+            ecg_problem_np = np.array(ecg_problem)
+
+            r_peaks_problem = _rpeaks(ecg_problem_np,fs)
+            print(r_peaks_problem)
+
+    
+
+    # OBS : XXXXXXX : REMEMBER TO REMOVE FIRST AND LAST INDEX BEFORE RETURN XXXXXXXXX
+    return rpeaks_start
+
+
+
 def _rr_sample_entropy(rr, m=2, r_ratio=0.2):
 
     rr = np.asarray(rr, dtype=float)
@@ -604,6 +645,7 @@ class ECGCinC2017Track(TrackAdapter):
 
         ecg = rec.epochs["ecg"][0]
         fs = rec.fs
+        print("EXTRACTING FEATURES XXXXXX")
 
         if rpeak_method in ("adaptive", "R1"):
             pk = _rpeaks_adaptive(ecg, fs)
