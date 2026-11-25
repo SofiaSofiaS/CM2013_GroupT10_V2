@@ -614,10 +614,12 @@ def _along_last(fn, arr):
 def _remove_baseline(x, fs, how, hp_fc=0.5, order=4, poly_order=3, wavelet="db4",
                      causal=False):
     """Baseline-wander remedies. See `denoise.__doc__` for the trade-offs."""
+    print("IN REMOVE BASELINE XXXX")
     how = (how or "none").lower()
     if how in ("none", "off"):
         return x
     if how in ("highpass", "hp", "filter"):
+        print("IN HIGH PASS")
         from scipy.signal import butter, filtfilt, lfilter
         b, a = butter(order, max(hp_fc / (fs / 2.0), 1e-6), "high")
         return lfilter(b, a, x, axis=-1) if causal else filtfilt(b, a, x, axis=-1)

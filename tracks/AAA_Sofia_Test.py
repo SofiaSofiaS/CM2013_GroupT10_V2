@@ -118,28 +118,68 @@ import matplotlib
 
 
 # PLOT OF ECG W VERTICAL LINES FOR DETECTED HEART BEATS
-
+"""
 i = 1944
-RRIs = AAAA_t10track_ecg._rpeaks_im_V2(records[i].epochs["ecg"][0],records[i].fs)
+#records[i].epochs["ecg"][0] = adapter._remove_powerline(records[i].epochs["ecg"][0],records[i].fs,how="notch")
+#records[i].epochs["ecg"][0] = adapter._remove_baseline(records[i].epochs["ecg"][0],records[i].fs,how="highpass",order=6)
+#RRIs = AAAA_t10track_ecg._rpeaks_im_V2(records[i].epochs["ecg"][0],records[i].fs)
+RRIs = AAAA_t10track_ecg._try_new_rpeaks(records[i].epochs["ecg"][0],records[i].fs)
 RRIs_sec = 1/300 * RRIs
+rec_derivative = np.gradient(records[i].epochs["ecg"][0])
+rec_der_exp = 20*rec_derivative
 fig, (axA,axB,axC) = matplotlib.pyplot.subplots(3)
 axA.plot(records[i].epochs["ecg"][0])
+axC.plot(rec_der_exp)
 axA.vlines(RRIs,0,1.,colors="red")
 axA.set_title("track 1944")
 
 i = 1655
-RRIs = AAAA_t10track_ecg._rpeaks(records[i].epochs["ecg"][0],records[i].fs)
+#records[i].epochs["ecg"][0] = adapter._remove_powerline(records[i].epochs["ecg"][0],records[i].fs,how="notch")
+#records[i].epochs["ecg"][0] = adapter._remove_baseline(records[i].epochs["ecg"][0],records[i].fs,how="highpass",order=6)
+#RRIs = AAAA_t10track_ecg._rpeaks_im_V2(records[i].epochs["ecg"][0],records[i].fs)
+RRIs = AAAA_t10track_ecg._try_new_rpeaks(records[i].epochs["ecg"][0],records[i].fs)
 RRIs_sec = 1/300 * RRIs
+rec_derivative = np.gradient(records[i].epochs["ecg"][0])
+rec_der_exp = 20*rec_derivative
 axB.plot(records[i].epochs["ecg"][0])
+axC.plot(rec_der_exp)
 axB.vlines(RRIs,0,1.,colors="red")
 axB.set_title("track 1655")
 
 i = 1166
-RRIs = AAAA_t10track_ecg._rpeaks(records[i].epochs["ecg"][0],records[i].fs)
+#records[i].epochs["ecg"][0] = adapter._remove_powerline(records[i].epochs["ecg"][0],records[i].fs,how="notch")
+#records[i].epochs["ecg"][0] = adapter._remove_baseline(records[i].epochs["ecg"][0],records[i].fs,how="highpass",order=6)
+#RRIs = AAAA_t10track_ecg._rpeaks_im_V2(records[i].epochs["ecg"][0],records[i].fs)
+#RRIs = AAAA_t10track_ecg._rpeaks_im_V2(records[i].epochs["ecg"][0],records[i].fs)
+RRIs = AAAA_t10track_ecg._try_new_rpeaks(records[i].epochs["ecg"][0],records[i].fs)
 RRIs_sec = 1/300 * RRIs
+rec_derivative = np.gradient(records[i].epochs["ecg"][0])
+rec_der_exp = 20*rec_derivative
 axC.plot(records[i].epochs["ecg"][0])
+#axC.plot(rec_derivative)
+axC.plot(rec_der_exp)
 axC.vlines(RRIs,0,1.,colors="red")
 axC.set_title("track 1166")
+"""
+
+
+fig , ax = matplotlib.pyplot.subplots(3)
+is_ii = [1944, 1655, 1166]
+for ii in range(len(is_ii)):
+    i = is_ii[ii]
+    #RRIs = AAAA_t10track_ecg._try_new_rpeaks(records[i].epochs["ecg"][0],records[i].fs)
+    RRIs = AAAA_t10track_ecg._divisible_len(records[i].epochs["ecg"][0],records[i].fs)
+    RRIs_sec = 1/300 * RRIs
+    rec_derivative = 20 * np.gradient(records[i].epochs["ecg"][0])
+
+    ax[ii].plot(records[i].epochs["ecg"][0],color="blue")
+    ax[ii].plot(rec_derivative,color="orange")
+    ax[ii].vlines(RRIs, 2,4,color="red")
+
+
+    
+
+
 
 matplotlib.pyplot.show()
 
