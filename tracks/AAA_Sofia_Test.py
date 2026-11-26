@@ -164,17 +164,22 @@ axC.set_title("track 1166")
 
 
 fig , ax = matplotlib.pyplot.subplots(3)
-is_ii = [1944, 1655, 1166]
+#is_ii = [1944, 1655, 1166]
+is_ii = [1,2,3]
 for ii in range(len(is_ii)):
+    print(records[ii].labels)
     i = is_ii[ii]
     #RRIs = AAAA_t10track_ecg._try_new_rpeaks(records[i].epochs["ecg"][0],records[i].fs)
+    #RRIs = AAAA_t10track_ecg._rpeaks_improved(records[i].epochs["ecg"][0],records[i].fs)
     RRIs = AAAA_t10track_ecg._divisible_len(records[i].epochs["ecg"][0],records[i].fs)
     RRIs_sec = 1/300 * RRIs
     rec_derivative = 20 * np.gradient(records[i].epochs["ecg"][0])
-
+    ax[ii].vlines(RRIs, 0,2,color="red")
     ax[ii].plot(records[i].epochs["ecg"][0],color="blue")
-    ax[ii].plot(rec_derivative,color="orange")
-    ax[ii].vlines(RRIs, 2,4,color="red")
+    #ax[ii].plot(rec_derivative,color="orange")
+    RRIs_yval = np.ones(len(RRIs))
+    #ax[ii].scatter(RRIs,RRIs_yval)
+
 
 
     

@@ -49,5 +49,10 @@ print(xt)
 ym = np.argmax(xt)
 print(ym)
 
+zm = np.argmin(xt)
+print(zm)
+
 
 print(xt[3:3])
+
+
